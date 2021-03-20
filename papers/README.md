@@ -1,4 +1,4 @@
-#Uploaded papers:
+## Uploaded papers:
 
 # Stock Price Prediction Using Machine Learning and LSTM-Based Deep Learning Methods:
 
