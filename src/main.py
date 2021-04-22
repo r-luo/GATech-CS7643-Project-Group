@@ -16,6 +16,7 @@ if __name__ == "__main__":
     scaler = MinMaxScaler(feature_range=(-1, 1))
     price['Close'] = scaler.fit_transform(price['Close'].values.reshape(-1,1))
     raw_data = price['Close']
+    # change the input shape
     raw_data = np.expand_dims(raw_data, axis=1)
     # print(raw_data.shape)
     # print(raw_data)
@@ -30,7 +31,7 @@ if __name__ == "__main__":
     """
     set model hyper parameters
     """
-    input_dim = 1
+    input_dim = x_train[0].shape[2]
     hidden_dim = 32
     num_layers = 2
     output_dim = 1
@@ -50,6 +51,6 @@ if __name__ == "__main__":
     train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name)
 
     """
-    Validation, plot, etc
+    Curves predictions
     """
 
