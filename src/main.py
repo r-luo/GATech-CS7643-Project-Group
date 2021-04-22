@@ -17,8 +17,8 @@ if __name__ == "__main__":
     price['Close'] = scaler.fit_transform(price['Close'].values.reshape(-1,1))
     raw_data = price['Close']
     raw_data = np.expand_dims(raw_data, axis=1)
-    # print(raw_data.shape)
-    # print(raw_data)
+    print(raw_data.shape)
+    print(raw_data)
 
     """
     split training and validation data
@@ -52,4 +52,10 @@ if __name__ == "__main__":
     """
     Validation, plot, etc
     """
-
+    
+    
+    """
+    Prediction Curve
+    """
+    #model_name_pred = "LSTM_prediction_V0"
+    #prediction_curve(model, raw_data, raw_data, lag, scaler, model_name_pred)

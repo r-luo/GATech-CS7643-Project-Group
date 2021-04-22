@@ -124,7 +124,36 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     path = os.path.join(saved_folder, model_name)
     torch.save(model, path)
 
+def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name):
+    if type(real_price_data) != np.ndarray:
+        real_price_data = real_price_data.to_numpy()
 
+    if type(test_data) != np.ndarray:
+        test_data = test_data.to_numpy()
+
+    real_price = real_price_data[lag:,:]['Close'].values
+    
+    inputs = test_data
+    X_test = []
+    for i in range(len(inputs) - lag):
+        X_test.append(inputs[i:i+lag])
+    X_test = np.array(X_test)
+
+    # convert to pytorch tensor
+    X_test = torch.from_numpy(X_test).type(torch.Tensor)
+
+    predicted_price = model.predict(X_test)
+    #predicted_price = scaler.inverse_transform(predicted_price)
+    
+    # Visualising the results
+    plt.plot(real_price, color = 'red', label = 'Real Stock Price')
+    plt.plot(predicted_price, color = 'blue', label = 'Predicted Stock Price')
+    plt.title('Stock Price Prediction')
+    plt.xlabel('Time')
+    plt.ylabel('Stock Price')
+    plt.legend()
+    plt.savefig(model_name)
+    
 def chunks(lst, n):
     """
     divide data into batches
