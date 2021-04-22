@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import os
-
+import pandas as pd
 
 def split_data(data_raw, lag, batch_size):
     """
@@ -125,29 +125,39 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     torch.save(model, path)
 
 def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name):
+    
+    ## Preprocessing the test dataset
+    test_data['Close'] = scaler.fit_transform(test_data['Close'].values.reshape(-1,1))
+    test_data = test_data['Close']
+    # change the input shape
+    test_data = np.expand_dims(test_data, axis=1)
+    
     if type(real_price_data) != np.ndarray:
         real_price_data = real_price_data.to_numpy()
 
     if type(test_data) != np.ndarray:
         test_data = test_data.to_numpy()
 
-    real_price = real_price_data[lag:,:]['Close'].values
+    real_price = real_price_data[lag:,]
+    real_price = pd.DataFrame(real_price, columns = ['Date','Real_Price'])
+    real_price['Date'] = pd.to_datetime(real_price.Date).dt.date
     
     inputs = test_data
     X_test = []
-    for i in range(len(inputs) - lag):
+    for i in range(len(inputs)-lag):
         X_test.append(inputs[i:i+lag])
     X_test = np.array(X_test)
-
     # convert to pytorch tensor
     X_test = torch.from_numpy(X_test).type(torch.Tensor)
 
-    predicted_price = model.predict(X_test)
-    #predicted_price = scaler.inverse_transform(predicted_price)
+    predicted_price = model(X_test).detach().numpy()
+    predicted_price = scaler.inverse_transform(predicted_price)   
+    predicted_price = pd.DataFrame(predicted_price, columns = ['Predicted_Price'])
+
+    price_dat = pd.concat([real_price,predicted_price], axis = 1)
     
     # Visualising the results
-    plt.plot(real_price, color = 'red', label = 'Real Stock Price')
-    plt.plot(predicted_price, color = 'blue', label = 'Predicted Stock Price')
+    price_dat.plot(kind='line', x = "Date", y = ['Real_Price','Predicted_Price'], color = ['red','blue'],label = ['Real Stock Price','Predicted Stock Price'])
     plt.title('Stock Price Prediction')
     plt.xlabel('Time')
     plt.ylabel('Stock Price')

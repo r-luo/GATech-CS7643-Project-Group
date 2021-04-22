@@ -18,8 +18,8 @@ if __name__ == "__main__":
     raw_data = price['Close']
     # change the input shape
     raw_data = np.expand_dims(raw_data, axis=1)
-    print(raw_data.shape)
-    print(raw_data)
+    #print(raw_data.shape)
+    #print(raw_data)
 
     """
     split training and validation data
@@ -58,5 +58,8 @@ if __name__ == "__main__":
     """
     Prediction Curve
     """
-    #model_name_pred = "LSTM_prediction_V0"
-    #prediction_curve(model, raw_data, raw_data, lag, scaler, model_name_pred)
+    model_name_pred = "LSTM_prediction_V0"
+    real_price_data = data[['Date','Close']]
+    test_data = data[['Close']]
+    
+    prediction_curve(model, real_price_data, test_data, lag, scaler, model_name_pred)
