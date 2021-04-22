@@ -10,7 +10,7 @@ def split_data(data_raw, lag, batch_size):
     Split data for training and testing
     data_raw: raw data like price in 1 year
     lag: length of a chunk. for example, prices of day 1, day2, day3 are used a train data so lag is 3.
-    return type: list of tensors
+    return type: list of tensors, shape: (batch, seq, feature)
     """
     if type(data_raw) != np.ndarray:
         data_raw = data_raw.to_numpy()
