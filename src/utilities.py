@@ -125,11 +125,21 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     torch.save(model, path)
 
 def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name):
+    """
+    Plot the prediction curve of real stock price vs. predicted stock price.
+    :param model: nlp model trained
+    :param real_price_data: dataset containing the real stock price
+    :param test_data: dataset used to predict the stock price
+    :param lag: length of a chunk (timestep)
+    :param scaler: scaler used to process the test_data
+    :param model_name: name of the output plot
+    :return: None
+    """
     
-    ## Preprocessing the test dataset
+    # Preprocessing the test dataset
     test_data['Close'] = scaler.fit_transform(test_data['Close'].values.reshape(-1,1))
     test_data = test_data['Close']
-    # change the input shape
+    ## change the input shape
     test_data = np.expand_dims(test_data, axis=1)
     
     if type(real_price_data) != np.ndarray:
@@ -138,22 +148,26 @@ def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name)
     if type(test_data) != np.ndarray:
         test_data = test_data.to_numpy()
 
+    # real price dataframe
     real_price = real_price_data[lag:,]
     real_price = pd.DataFrame(real_price, columns = ['Date','Real_Price'])
     real_price['Date'] = pd.to_datetime(real_price.Date).dt.date
     
+    # predict the stock price in test_data
     inputs = test_data
     X_test = []
     for i in range(len(inputs)-lag):
         X_test.append(inputs[i:i+lag])
     X_test = np.array(X_test)
-    # convert to pytorch tensor
+    ## convert to pytorch tensor
     X_test = torch.from_numpy(X_test).type(torch.Tensor)
 
+    # predicted price dataframe
     predicted_price = model(X_test).detach().numpy()
     predicted_price = scaler.inverse_transform(predicted_price)   
     predicted_price = pd.DataFrame(predicted_price, columns = ['Predicted_Price'])
-
+    
+    # concat two dataframes
     price_dat = pd.concat([real_price,predicted_price], axis = 1)
     
     # Visualising the results
