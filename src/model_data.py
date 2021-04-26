@@ -148,6 +148,7 @@ class SingleTickerPipeline:
         LOG.info("Making testing arrays...")
         test_dfs = get_period_data(self._df, self.test_periods)
         test_xy_arrs = self.get_xy_arr(test_dfs, seq_dist=1)
+        LOG.info(f"  Training has {test_xy_arrs['N']} sequences of length {self.model_seq_len}.")
         self._test_out = test_xy_arrs
     
     def create_arrays(self):
