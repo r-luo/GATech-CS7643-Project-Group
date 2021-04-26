@@ -1,9 +1,13 @@
 import numpy
+from itertools import product
+import random
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
+from LSTM import LSTM
+
 
 def split_data(data_raw, lag, batch_size):
     """
@@ -48,6 +52,25 @@ def split_data(data_raw, lag, batch_size):
     y_test = list(chunks(y_test, batch_size))
 
     return x_train, y_train, x_test, y_test
+
+
+def rolling_corss_validation(data, model, num_epochs, criterion, optimizer):
+    k = len(data)
+
+    total_loss = 0
+    for i in range(k-1):
+        train_data = train_data + data[i]
+        valid_data = data[i+1]
+        # shuffle data
+        random.shuffle(train_data)
+        random.shuffle(valid_data)
+        x_train, y_train= get_XY(train_data)
+        x_valid, y_valid = get_XY(valid_data)
+        model_name = "model_{}th_fold".format(i)
+        val_loss = train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, optimizer, model_name)
+        total_loss += val_loss
+    return total_loss/float(k-1)
+
 
 
 def train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name):
@@ -111,18 +134,61 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         val_hist[epoch] = val_loss_per_batch
 
     # plotting curves
+    fig = plt.figure()
     plt.plot(train_hist, label="trainign loss")
     plt.plot(val_hist, label="validation loss")
     plt.legend()
     plt.xlabel("number of epochs")
     plt.ylabel("loss - MSE")
     plt.title("training loss")
-    plt.savefig(model_name)
+    plt.savefig(model_name + ".jpg")
 
     # save model
     saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
     path = os.path.join(saved_folder, model_name)
     torch.save(model, path)
+
+    return val_loss_per_batch
+
+def hyper_parameters_tunning(hyper_parameters, x_train, y_train, x_validation, y_validation, output_dim):
+    """
+
+    :param hyper_parameters: hyper parameters
+    :param train_parameters: training parameters, i.e model, training x, training y
+    :return:
+    """
+
+    combinations  = list()
+
+    for prod in product(*hyper_parameters.values()):
+        temp = dict()
+        for key, val in zip(hyper_parameters, prod):
+            temp[key] = val
+        combinations.append(temp)
+
+    input_dim = x_train[0].shape[2]
+    criterion = torch.nn.MSELoss(reduction='mean')
+    best_loss = float('inf')
+    best_params = None
+    for combo in combinations:
+        print("training combo: ", combo)
+        hidden_dim = combo['hidden_dim']
+        num_layers = combo['num_layers']
+        num_epochs = combo['num_epochs']
+        learning_rate = combo['learning_rate']
+        model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        model_name = "LSTM_trial_hidden_dims_{}__num_layers_{}__num_epochs_{}__lr_{}".format(hidden_dim,
+                                                                                             num_layers,
+                                                                                             num_epochs,
+                                                                                             learning_rate)
+        val_loss = train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name)
+        if val_loss < best_loss:
+            best_loss = val_loss
+            best_params = combo
+
+    print("best combinations: ", best_params)
+
 
 def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name):
     """

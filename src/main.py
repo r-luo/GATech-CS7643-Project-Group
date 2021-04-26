@@ -48,18 +48,22 @@ if __name__ == "__main__":
     """
     Start training
     """
-    train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name)
+    # train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name)
 
     """
     Curves predictions
     """
-    
+
+    hyper_parameters = {"hidden_dim":[16, 32, 64], "num_layers": [2, 4, 8], "num_epochs": [15], "learning_rate": [0.001, 0.01, 0.1]}
+    hyper_parameters_tunning(hyper_parameters, x_train, y_train, x_validation, y_validation, 1)
+
+
     
     """
     Prediction Curve
     """
-    model_name_pred = "LSTM_prediction_V0"
-    real_price_data = data[['Date','Close']]
-    test_data = data[['Close']]
-    
-    prediction_curve(model, real_price_data, test_data, lag, scaler, model_name_pred)
+    # model_name_pred = "LSTM_prediction_V0"
+    # real_price_data = data[['Date','Close']]
+    # test_data = data[['Close']]
+    #
+    # prediction_curve(model, real_price_data, test_data, lag, scaler, model_name_pred)
