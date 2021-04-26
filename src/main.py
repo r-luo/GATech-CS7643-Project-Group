@@ -1,6 +1,6 @@
 from sklearn.preprocessing import MinMaxScaler
-from utilities import *
-from LSTM import LSTM
+from .utilities import *
+from .LSTM import LSTM
 import pandas as pd
 
 
