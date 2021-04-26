@@ -72,7 +72,7 @@ class SingleTickerPipeline:
         self._seq_dist = self.model_seq_len - self.max_overlap
         self._save_path = None
         
-    def load_data(self, ticker=None):
+    def load_input(self, ticker=None):
         ticker = ticker or self._ticker
         data_file = self.data_path.joinpath(f"{ticker}.csv")
         LOG.info(f"Reading data from {data_file.as_posix()}...")
@@ -92,8 +92,6 @@ class SingleTickerPipeline:
         df = pd.concat([df[['target']].iloc[1:, :].reset_index(drop=True), df[self._feature_cols + ["date"]].iloc[:-1, :].reset_index(drop=True)], axis=1)
         self._df = df
 
-
-        
     def get_xy_arr(self, dfs, seq_dist=None):
         seq_dist = seq_dist or self._seq_dist
         arrays = {"x": [], "y": [], "N": 0}
@@ -121,7 +119,7 @@ class SingleTickerPipeline:
         
         LOG.info(f"Making {self.cross_validation_folds} validation folds...")
         train_val_distance = int(np.ceil(self.model_seq_len / self._seq_dist))
-        fold_size = (train_xy_arrs["N"] - train_val_distance) // self.cross_validation_folds
+        fold_size = (train_xy_arrs["N"] - train_val_distance) // (self.cross_validation_folds + 1)
         
         LOG.info(f"  Generating folds with fold_size={fold_size} and distance between train and validation being {train_val_distance}")
         folds = {}
@@ -167,8 +165,20 @@ class SingleTickerPipeline:
         
     def prepare_data(self, ticker):
         self._ticker = ticker
-        self.load_data()
+        self.load_input()
         self.create_arrays()
+        
+    def load_data(self, ticker):
+        self._ticker = ticker
+        self._save_path = self.output_path.joinpath(self._ticker)
+        LOG.info(f"Loading generated data from {self._save_path.as_posix()}...")
+        if not self._save_path.exists():
+            raise FileNotFoundError("Directory doesn't exist, can't load data!")
+        LOG.info("  Loading train folds...")
+        self._train_out = load_pickle_file(self._save_path.joinpath("train.pkl"))
+        LOG.info("  Loading test arrays...")
+        self._test_out = load_pickle_file(self._save_path.joinpath("test.pkl"))
+        
         
         
 def get_return_col(df, log=False):
@@ -196,3 +206,4 @@ def write_pickle_file(obj, file):
 def load_pickle_file(file):
     with Path(file).open('rb') as pkl_file:
         obj = pickle.load(pkl_file)
+    return obj

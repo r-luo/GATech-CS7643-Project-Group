@@ -6,7 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
-from LSTM import LSTM
+from .LSTM import LSTM
 
 
 def split_data(data_raw, lag, batch_size):
