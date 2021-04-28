@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import logging
 import pickle
+from sklearn import preprocessing
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)

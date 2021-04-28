@@ -6,7 +6,9 @@ import torch
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
-from .LSTM import LSTM
+import copy
+import torch
+from LSTM import LSTM
 
 
 def split_data(data_raw, lag, batch_size):
@@ -54,26 +56,147 @@ def split_data(data_raw, lag, batch_size):
     return x_train, y_train, x_test, y_test
 
 
-def rolling_corss_validation(data, model, num_epochs, criterion, optimizer):
+def divide_into_batches(data, batch_size):
+    return list(chunks(data, batch_size))
+
+
+def convert_data(data, batch_division=True, batch_size=128):
+    """
+
+    :param data: data in folds, fold data: "train": "x" : train_x, "y: ": train_y, "valid: ": "x": valid_x, "y:", valid_y,
+            train_x, train_y, valid_x, valid_y shape: batch_size * sequence_length * feature size
+    :param batch_size:
+    :param batch_division:
+    :return: data in folds and training data in batches
+    """
+
+    for i in range(len(data)):
+        fold_arrs = data[i]
+        x_train = fold_arrs["train"]["x"]
+        y_train = fold_arrs["train"]["y"]
+        x_valid = fold_arrs["valid"]["x"]
+        y_valid = fold_arrs["valid"]["y"]
+        # convert to torch tensor type
+        x_train = torch.from_numpy(x_train).type(torch.Tensor)
+        y_train = torch.from_numpy(y_train).type(torch.Tensor)
+        x_valid = torch.from_numpy(x_valid).type(torch.Tensor)
+        y_valid = torch.from_numpy(y_valid).type(torch.Tensor)
+        # divide training data into batches
+        if batch_division:
+            x_train = list(chunks(x_train, batch_size))
+            y_train = list(chunks(y_train, batch_size))
+            x_valid = list(chunks(x_valid, batch_size))
+            y_valid = list(chunks(y_valid, batch_size))
+        # update data folds
+        data[i]["train"]["x"] = x_train
+        data[i]["train"]["y"] = y_train
+        data[i]["valid"]["x"] = x_valid
+        data[i]["valid"]["y"] = y_valid
+    return data
+
+
+def rolling_cross_validation(data, model, num_epochs, criterion, optimizer):
+    """
+
+    :param data: data in folds, fold data: "train": "x" : train_x, "y: ": train_y, "valid: ": "x": valid_x, "y:", valid_y,
+            train_x, train_y, valid_x, valid_y shape: batch_size * sequence_length * feature size
+    :param model:
+    :param num_epochs:
+    :param criterion:
+    :param optimizer:
+    :return:
+    """
     k = len(data)
-
     total_loss = 0
+
     for i in range(k-1):
-        train_data = train_data + data[i]
-        valid_data = data[i+1]
+        x_train = data[i]["train"]["x"]
+        y_train = data[i]["train"]["y"]
+        x_valid = data[i]["valid"]["x"]
+        y_valid = data[i]["valid"]["y"]
         # shuffle data
-        random.shuffle(train_data)
-        random.shuffle(valid_data)
-        x_train, y_train= get_XY(train_data)
-        x_valid, y_valid = get_XY(valid_data)
+        train_temp = list(zip(x_train, y_train))
+        random.shuffle(train_temp)
+        x_train, y_train = zip(*train_temp)
         model_name = "model_{}th_fold".format(i)
-        val_loss = train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, optimizer, model_name)
+        model_copy = copy.deepcopy(model)
+        val_loss = train(model_copy, num_epochs, x_train, y_train, x_valid, y_valid, criterion, optimizer, model_name, False, False)
         total_loss += val_loss
-    return total_loss/float(k-1)
+    return total_loss//(k-1)
 
 
+def get_return_col(df, log=False):
+    price_rat = df['adj_close'] / df['adj_close'].shift(-1)
+    if log:
+        return_col_name = "log_return"
+        return_col_value = np.log(price_rat)
+    else:
+        return_col_name = "return"
+        return_col_value = price_rat - 1
+    df.loc[:, return_col_name] = return_col_value
+    return return_col_name
 
-def train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name):
+
+def get_period_data(df, periods, date_col="date"):
+    dfs_by_period = [df[pd.to_datetime(df[date_col]).between(pd.to_datetime(period[0]), pd.to_datetime(period[1]))].sort_values(date_col, ascending=True) for period in periods]
+    return dfs_by_period
+
+
+def write_pickle_file(obj, file):
+    with Path(file).open('wb') as pkl_file:
+        pickle.dump(obj, pkl_file, protocol=4)
+
+
+def load_pickle_file(file):
+    with Path(file).open('rb') as pkl_file:
+        obj = pickle.load(pkl_file)
+
+
+def data_loader(train_dfs, pipeline, batch_size=128):
+    #
+    max_overlap = pipeline.max_overlap
+    model_seq_len = pipeline.model_seq_len
+    cross_validation_folds = pipeline.cross_validation_folds
+    #
+    train_arrays = {"x": [], "y": [], "N": 0}
+    for train_df in train_dfs:
+        N = train_df.shape[0]
+        step = max_overlap
+        if N >= model_seq_len:
+            for i in range((N - model_seq_len) // (model_seq_len - max_overlap)):
+                train_arrays["x"].append(train_df[pipeline._feature_cols].iloc[
+                                         (N - (i * (model_seq_len - max_overlap) + model_seq_len)):(
+                                                     N - i * (model_seq_len - max_overlap))].values)
+                train_arrays["y"].append([train_df["target"].iloc[(N - i * (model_seq_len - max_overlap)) - 1]])
+                train_arrays["N"] += 1
+    train_arrays["x"] = np.array(train_arrays['x'][::-1])
+    train_arrays["y"] = np.array(train_arrays['y'][::-1])
+    #
+    train_val_distance = int(np.ceil(model_seq_len / (model_seq_len - max_overlap)))
+    fold_size = (train_arrays["N"] - train_val_distance) // cross_validation_folds
+    folds = []
+    #
+    # data in folds and divide into batches
+    for i in range(cross_validation_folds):
+        train_end_ind = fold_size * (i + 1)
+        val_begin_ind = fold_size * (i + 1) + train_val_distance
+        val_end_ind = val_begin_ind + fold_size
+        fold_arrs = {
+            "train": {
+                "x": divide_into_batches(train_arrays["x"][:train_end_ind], batch_size),
+                "y": divide_into_batches(train_arrays["y"][:train_end_ind], batch_size),
+            },
+            "valid": {
+                "x": divide_into_batches(train_arrays["x"][val_begin_ind:val_end_ind], batch_size),
+                "y": divide_into_batches(train_arrays["y"][val_begin_ind:val_end_ind], batch_size),
+            },
+        }
+        folds.append(fold_arrs)
+    #
+    return folds
+
+
+def train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name, plot=False, model_save=False):
     """
     :param model: nlp model
     :param num_epochs:
@@ -84,6 +207,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     :param criterion:
     :param optimizer:
     :param model_name:
+    :param plot:
     :return: None
     """
 
@@ -96,10 +220,13 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         # training
         model.train()
         train_loss_per_batch = 0
+        # loop over batches
+        # print("length of x_train: ", len(x_train))
         for x_train_sequence, target in zip(x_train, y_train):
             # Need to clear gradients before each instance
+            print("x_train sequence shape: ", x_train_sequence.size())
+            print("target shape: ", target.size())
             model.zero_grad()
-
             # training
             model.train()
             y_train_pred = model(x_train_sequence)
@@ -134,39 +261,42 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         val_hist[epoch] = val_loss_per_batch
 
     # plotting curves
-    fig = plt.figure()
-    plt.plot(train_hist, label="trainign loss")
-    plt.plot(val_hist, label="validation loss")
-    plt.legend()
-    plt.xlabel("number of epochs")
-    plt.ylabel("loss - MSE")
-    plt.title("training loss")
-    plt.savefig(model_name + ".jpg")
+    if plot:
+        fig = plt.figure()
+        plt.plot(train_hist, label="trainign loss")
+        plt.plot(val_hist, label="validation loss")
+        plt.legend()
+        plt.xlabel("number of epochs")
+        plt.ylabel("loss - MSE")
+        plt.title("training loss")
+        plt.savefig(model_name + ".jpg")
 
     # save model
-    saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
-    path = os.path.join(saved_folder, model_name)
-    torch.save(model, path)
+    if model_save:
+        saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
+        path = os.path.join(saved_folder, model_name)
+        torch.save(model, path)
 
     return val_loss_per_batch
 
-def hyper_parameters_tunning(hyper_parameters, x_train, y_train, x_validation, y_validation, output_dim):
+
+def hyper_parameters_tunning(hyper_parameters, train_data, cross_validation=True):
     """
 
     :param hyper_parameters: hyper parameters
-    :param train_parameters: training parameters, i.e model, training x, training y
+    :param train_data: training data in folds, used for cross validation
     :return:
     """
 
-    combinations  = list()
-
+    combinations = list()
     for prod in product(*hyper_parameters.values()):
         temp = dict()
         for key, val in zip(hyper_parameters, prod):
             temp[key] = val
         combinations.append(temp)
 
-    input_dim = x_train[0].shape[2]
+    input_dim = train_data[0]["train"]["x"][0].shape[2]
+    output_dim = train_data[0]["train"]["y"][0].shape[1]
     criterion = torch.nn.MSELoss(reduction='mean')
     best_loss = float('inf')
     best_params = None
@@ -182,12 +312,12 @@ def hyper_parameters_tunning(hyper_parameters, x_train, y_train, x_validation, y
                                                                                              num_layers,
                                                                                              num_epochs,
                                                                                              learning_rate)
-        val_loss = train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name)
+        val_loss = rolling_cross_validation(train_data, model, num_epochs, criterion, optimizer)
         if val_loss < best_loss:
             best_loss = val_loss
             best_params = combo
 
-    print("best combinations: ", best_params)
+    return best_params
 
 
 def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name):
