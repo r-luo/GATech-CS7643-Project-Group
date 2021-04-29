@@ -273,7 +273,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         plt.legend()
         plt.xlabel("number of epochs")
         plt.ylabel("loss - MSE")
-        plt.title("training loss")
+        plt.title("training loss - {}".format(model_name))
         plt.savefig(os.path.join(saved_folder, "{}.jpg".format(model_name)))
 
     return val_loss_per_batch
