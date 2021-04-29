@@ -1,8 +1,6 @@
-import numpy
 from itertools import product
 import random
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 import os
 import pandas as pd
@@ -11,56 +9,46 @@ import torch
 from LSTM import LSTM
 
 
-def split_data(data_raw, lag, batch_size):
+def split_data(x, y, batch_size):
     """
     Split data for training and testing
     data_raw: raw data like price in 1 year
-    lag: length of a chunk. for example, prices of day 1, day2, day3 are used a train data so lag is 3.
     return type: list of tensors, shape: (batch, seq, feature)
     """
-    if type(data_raw) != np.ndarray:
-        data_raw = data_raw.to_numpy()
-
-    # data in model
-    data_list = []
-    for i in range(len(data_raw) - lag):
-        data_list.append(data_raw[i:i+lag])
-
     # shuffle data
-    data_list = np.array(data_list)
-    np.random.shuffle(data_list)
-
+    ids_shuffle = np.random.permutation(x.shape[0])
+    x = x[ids_shuffle]
+    y = y[ids_shuffle]
     # split training and testing set
-    test_size = int(np.round(0.2 * data_list.shape[0]))
-    train_size = data_list.shape[0] - test_size
+    test_size = int(np.round(0.2 * x.shape[0]))
+    train_size = x.shape[0] - test_size
     #
-    x_train = data_list[:train_size,:-1]
-    y_train = data_list[:train_size,-1]
-    #
-    x_test = data_list[train_size:,:-1]
-    y_test = data_list[train_size:,-1]
+    x_train = x[:train_size]
+    y_train = y[:train_size]
+    x_valid = x[train_size:]
+    y_valid = y[train_size:]
 
     # convert to pytorch tensor
     x_train = torch.from_numpy(x_train).type(torch.Tensor)
-    x_test = torch.from_numpy(x_test).type(torch.Tensor)
+    x_valid = torch.from_numpy(x_valid).type(torch.Tensor)
 
     y_train = torch.from_numpy(y_train).type(torch.Tensor)
-    y_test = torch.from_numpy(y_test).type(torch.Tensor)
+    y_valid = torch.from_numpy(y_valid).type(torch.Tensor)
 
     # divide into batches
     x_train = list(chunks(x_train, batch_size))
     y_train = list(chunks(y_train, batch_size))
-    x_test = list(chunks(x_test, batch_size))
-    y_test = list(chunks(y_test, batch_size))
+    x_valid = list(chunks(x_valid, batch_size))
+    y_valid = list(chunks(y_valid, batch_size))
 
-    return x_train, y_train, x_test, y_test
+    return x_train, y_train, x_valid, y_valid
 
 
 def divide_into_batches(data, batch_size):
     return list(chunks(data, batch_size))
 
 
-def convert_data(data, batch_division=True, batch_size=128):
+def convert_data(data, batch_division=True, batch_size=64):
     """
 
     :param data: data in folds, fold data: "train": "x" : train_x, "y: ": train_y, "valid: ": "x": valid_x, "y:", valid_y,
@@ -69,8 +57,7 @@ def convert_data(data, batch_division=True, batch_size=128):
     :param batch_division:
     :return: data in folds and training data in batches
     """
-
-    for i in range(len(data)):
+    for i in range(len(data)-1):
         fold_arrs = data[i]
         x_train = fold_arrs["train"]["x"]
         y_train = fold_arrs["train"]["y"]
@@ -123,7 +110,7 @@ def rolling_cross_validation(data, model, num_epochs, criterion, learning_rate):
         val_loss = train(model_copy, num_epochs, x_train, y_train, x_valid, y_valid,
                          criterion, learning_rate, model_name, False, False)
         total_loss += val_loss
-    return total_loss//(k-1)
+    return total_loss//k
 
 
 def get_return_col(df, log=False):
@@ -213,8 +200,14 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     """
 
     # plot history of loss
-    train_hist = np.zeros(num_epochs)
-    val_hist = np.zeros(num_epochs)
+    train_hist = []
+    val_hist = []
+    # define minimum loss and epoch no improve for early stopping
+    epochs_no_improve = 0
+    min_val_loss = float('inf')
+    n_epoch_stop = 10
+    # folder to save the plot and model
+    saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
     # define optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     for epoch in range(num_epochs):
@@ -226,8 +219,6 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         # print("length of x_train: ", len(x_train))
         for x_train_sequence, target in zip(x_train, y_train):
             # Need to clear gradients before each instance
-            print("x_train sequence shape: ", x_train_sequence.size())
-            print("target shape: ", target.size())
             model.zero_grad()
             # training
             model.train()
@@ -257,32 +248,38 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
                 #
                 val_loss_per_batch += val_loss.item()
             train_loss_per_batch += val_loss_per_batch/len(x_validation)
-
+        # early stopping:
+        if val_loss_per_batch < min_val_loss:
+            min_val_loss = val_loss_per_batch
+            # save the best model
+            if model_save:
+                path = os.path.join(saved_folder, model_name)
+                torch.save(model, path)
+        else:
+            epochs_no_improve += 1
+        if epoch > 5 and epochs_no_improve == n_epoch_stop:
+            print("Early stopping!")
+            break
+        #
         print("Epoch ", epoch, "training MSE: ", train_loss_per_batch, "validation MSE: ", val_loss_per_batch)
-        train_hist[epoch] = train_loss_per_batch
-        val_hist[epoch] = val_loss_per_batch
+        train_hist.append(train_loss_per_batch)
+        val_hist.append(val_loss_per_batch)
 
     # plotting curves
     if plot:
         fig = plt.figure()
-        plt.plot(train_hist, label="trainign loss")
+        plt.plot(train_hist, label="training loss")
         plt.plot(val_hist, label="validation loss")
         plt.legend()
         plt.xlabel("number of epochs")
         plt.ylabel("loss - MSE")
         plt.title("training loss")
-        plt.savefig(model_name + ".jpg")
-
-    # save model
-    if model_save:
-        saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
-        path = os.path.join(saved_folder, model_name)
-        torch.save(model, path)
+        plt.savefig(os.path.join(saved_folder, "{}.jpg".format(model_name)))
 
     return val_loss_per_batch
 
 
-def hyper_parameters_tunning(hyper_parameters, train_data, cross_validation=True):
+def hyper_parameters_tunning(hyper_parameters, train_data):
     """
 
     :param hyper_parameters: hyper parameters
@@ -303,7 +300,6 @@ def hyper_parameters_tunning(hyper_parameters, train_data, cross_validation=True
     best_loss = float('inf')
     best_params = None
     for combo in combinations:
-        print("training combo: ", combo)
         hidden_dim = combo['hidden_dim']
         num_layers = combo['num_layers']
         num_epochs = combo['num_epochs']
