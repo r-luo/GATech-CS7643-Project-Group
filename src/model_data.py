@@ -4,7 +4,6 @@ import numpy as np
 import logging
 import pickle
 import json
-from sklearn.preprocessing import StandardScaler
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
