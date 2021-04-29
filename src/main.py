@@ -4,10 +4,16 @@ from LSTM import LSTM
 import sys
 from pathlib import Path
 import model_data as md
+import sys
 sys.path.append(Path(".").absolute().parent.as_posix())
 
 
 if __name__ == "__main__":
+    """
+    run script as main.py stock, 
+    i.e. main.py TEAM
+    """
+
     """
     Load data
     """
@@ -27,9 +33,9 @@ if __name__ == "__main__":
         ],
         cross_validation_folds=5, )
     # Prepare data into folds
-    single_ticker_pipeline.prepare_data("TEAM")
+    single_ticker_pipeline.prepare_data(sys.argv[1])
     # load data
-    single_ticker_pipeline.load_data("TEAM")
+    single_ticker_pipeline.load_data(sys.argv[1])
     #
     train_data = single_ticker_pipeline._train_out
     test_data = single_ticker_pipeline._test_out
@@ -42,16 +48,8 @@ if __name__ == "__main__":
     # """
     input_dim = train_data[0]["train"]["x"][0].shape[2]
     output_dim = train_data[0]["train"]["y"][0].shape[1]
-
-    hidden_dim = 32
-    num_layers = 2
-    num_epochs = 15
-    learning_rate = 0.01
-    # Use LSTM model
-    model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
     # define criterion
     criterion = torch.nn.MSELoss(reduction='mean')
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # Model name for saving
     model_name = "LSTM_trial_V0"
     """
@@ -62,7 +60,17 @@ if __name__ == "__main__":
     """
     Start training
     """
-    # train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name, True, True)
+    hidden_dim = best_combo["hidden_dim"]
+    num_layers = best_combo["num_layers"]
+    num_epochs = best_combo["num_epochs"]
+    learning_rate = best_combo["learning_rate"]
+    # Use LSTM model
+    model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
+    x_train = train_data[len(train_data)-1]["train"]["x"]
+    y_train = train_data[len(train_data)-1]["train"]["y"]
+    x_valid = train_data[len(train_data)-1]["valid"]["x"]
+    y_valid = train_data[len(train_data)-1]["valid"]["y"]
+    train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, learning_rate, model_name, True, True)
     #
     # """
     # Curves predictions

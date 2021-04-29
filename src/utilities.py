@@ -95,7 +95,7 @@ def convert_data(data, batch_division=True, batch_size=128):
     return data
 
 
-def rolling_cross_validation(data, model, num_epochs, criterion, optimizer):
+def rolling_cross_validation(data, model, num_epochs, criterion, learning_rate):
     """
 
     :param data: data in folds, fold data: "train": "x" : train_x, "y: ": train_y, "valid: ": "x": valid_x, "y:", valid_y,
@@ -103,7 +103,7 @@ def rolling_cross_validation(data, model, num_epochs, criterion, optimizer):
     :param model:
     :param num_epochs:
     :param criterion:
-    :param optimizer:
+    :param learning_rate:
     :return:
     """
     k = len(data)
@@ -120,7 +120,8 @@ def rolling_cross_validation(data, model, num_epochs, criterion, optimizer):
         x_train, y_train = zip(*train_temp)
         model_name = "model_{}th_fold".format(i)
         model_copy = copy.deepcopy(model)
-        val_loss = train(model_copy, num_epochs, x_train, y_train, x_valid, y_valid, criterion, optimizer, model_name, False, False)
+        val_loss = train(model_copy, num_epochs, x_train, y_train, x_valid, y_valid,
+                         criterion, learning_rate, model_name, False, False)
         total_loss += val_loss
     return total_loss//(k-1)
 
@@ -196,7 +197,7 @@ def data_loader(train_dfs, pipeline, batch_size=128):
     return folds
 
 
-def train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, optimizer, model_name, plot=False, model_save=False):
+def train(model, num_epochs, x_train, y_train, x_validation, y_validation, criterion, learning_rate, model_name, plot=False, model_save=False):
     """
     :param model: nlp model
     :param num_epochs:
@@ -205,7 +206,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     :param x_validation:
     :param y_validation:
     :param criterion:
-    :param optimizer:
+    :param learning_rate:
     :param model_name:
     :param plot:
     :return: None
@@ -214,7 +215,8 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     # plot history of loss
     train_hist = np.zeros(num_epochs)
     val_hist = np.zeros(num_epochs)
-
+    # define optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     for epoch in range(num_epochs):
 
         # training
@@ -312,7 +314,7 @@ def hyper_parameters_tunning(hyper_parameters, train_data, cross_validation=True
                                                                                              num_layers,
                                                                                              num_epochs,
                                                                                              learning_rate)
-        val_loss = rolling_cross_validation(train_data, model, num_epochs, criterion, optimizer)
+        val_loss = rolling_cross_validation(train_data, model, num_epochs, criterion, learning_rate)
         if val_loss < best_loss:
             best_loss = val_loss
             best_params = combo
