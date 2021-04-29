@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import logging
 import pickle
-from sklearn import preprocessing
+import json
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -23,7 +23,9 @@ class SingleTickerPipeline:
             ("2007-01-01", "2008-12-31"),
             ("2019-01-01", "2021-04-01"),
         ],
-        cross_validation_folds=10,
+        normalization_method="log",
+        lookback_period=200,
+        cross_validation_folds=5,
         data_path=Path(__file__).absolute().parent.parent.joinpath("data/feature_selected"),
         output_path=Path(__file__).absolute().parent.parent.joinpath("data/model_data"),
     ):
@@ -41,12 +43,22 @@ class SingleTickerPipeline:
             model sequence length specifies the sequence length of each input sample. 
             E.g. 30 means using the past 30 days's historical data to predict the next day
         max_overlap: int
-            maximum number of overlapping days between two sequences
+            maximum number of overlapping days between two sequences. Will be capped at model_seq_len - 1
+            if it is larger than model_seq_len
         train_periods: list(tuple(str, str))
-            training periods is a list of tuples, each tuple has a start date and an end date. Data from all training periods are put together
+            training periods is a list of tuples, each tuple has a start date and an end date. 
+            Data from all training periods are put together
             Note that training periods will be further divided into time series cross validation
         test_periods: list(tuple(str, str))
             similar to training periods
+        normalization_method: str
+            how features are normalized within each sequence
+            None: no normalization performed
+            "log": feature x is transformed into sign(x) * log(1 + |x|)
+            "quantile": feature x is transformed into (x - P50) / (P75 - P25), where P25, P50 and P75 are 
+                the 25th, 50th and 75th quantile of x in the past lookback_period records (if available)
+        lookback_period: int
+            number of records from the past used to estimate quantiles, only used if normalization_method is set to "quantile"
         cross_validation_folds: int
             number of folds for rolling cross validation
         data_path: str or pathlib.Path
@@ -55,11 +67,14 @@ class SingleTickerPipeline:
             root path to store the output data. Default: project_root/data/model_data
         """
         self.target = target
+        self.target_col = "adj_close" if target == 'price' else target
         self.target_type = target_type
         self.model_seq_len = model_seq_len
-        self.max_overlap = max_overlap
+        self.max_overlap = min(model_seq_len - 1, max_overlap)
         self.train_periods = train_periods
         self.test_periods = test_periods
+        self.normalization_method = normalization_method
+        self.lookback_period = lookback_period
         self.cross_validation_folds = cross_validation_folds
         self.data_path = Path(data_path)
         self.output_path = Path(output_path)
@@ -100,7 +115,21 @@ class SingleTickerPipeline:
             N = df.shape[0]
             if N >= self.model_seq_len:
                 for i in range((N - self.model_seq_len) // seq_dist):
-                    arrays["x"].append(df[self._feature_cols].iloc[(N - (i * seq_dist + self.model_seq_len)):(N - i * seq_dist)].values)
+                    feature_subdf = df[self._feature_cols].iloc[(N - (i * seq_dist + self.model_seq_len)):(N - i * seq_dist)]
+                    target_col_copy = feature_subdf[[self.target_col]]
+                    if self.normalization_method == "quantile":
+                        feature_quantiles = df[self._feature_cols].iloc[
+                            max(0, (N - (i * seq_dist + self.lookback_period))):(N - i * seq_dist)
+                        ].quantile([0.25, 0.5, 0.75])
+                        p25 = feature_quantiles.loc[0.25, :]
+                        p50 = feature_quantiles.loc[0.50, :]
+                        p75 = feature_quantiles.loc[0.75, :]
+                        feature_subdf = ((feature_subdf - p50) / (p75 - p25))
+                    elif self.normalization_method == "log":
+                        feature_subdf = np.sign(feature_subdf) * np.log1p(np.abs(feature_subdf))
+                    
+                    feature_subdf = pd.concat([target_col_copy, feature_subdf], axis=1).replace([-np.inf, np.inf], np.nan).fillna(0)
+                    arrays["x"].append(feature_subdf.values)
                     if self.target_type == "sequence":
                         arrays["y"].append(df[["target"]].iloc[(N - (i * seq_dist + self.model_seq_len)):(N - i * seq_dist)].values)
                     elif self.target_type == "single":
@@ -142,13 +171,14 @@ class SingleTickerPipeline:
             LOG.info(f"    Fold {i} shapes:")
             for sample in fold_arrs:
                 LOG.info(f"      x: {fold_arrs[sample]['x'].shape}, y: {fold_arrs[sample]['y'].shape}")
-        
+        folds["_all_"] = {'x': train_xy_arrs['x'], 'y': train_xy_arrs['y']}
         self._train_out = folds
         
     def create_test_array(self):
         LOG.info("Making testing arrays...")
         test_dfs = get_period_data(self._df, self.test_periods)
         test_xy_arrs = self.get_xy_arr(test_dfs, seq_dist=1)
+        LOG.info(f"  Training has {test_xy_arrs['N']} sequences of length {self.model_seq_len}.")
         self._test_out = test_xy_arrs
     
     def create_arrays(self):
@@ -179,9 +209,25 @@ class SingleTickerPipeline:
         self._train_out = load_pickle_file(self._save_path.joinpath("train.pkl"))
         LOG.info("  Loading test arrays...")
         self._test_out = load_pickle_file(self._save_path.joinpath("test.pkl"))
+    
+    def print_train_shapes(self):
+        print(
+            json.dumps({
+                i: {
+                    s: ({k: str(v.shape) for k, v in arr.items()} if isinstance(arr, dict) else str(arr.shape)) 
+                    for s, arr in fold.items()
+                } for i, fold in self._train_out.items()
+            }, sort_keys=False, indent=4)
+        )
         
-        
-        
+    def print_test_shapes(self):
+        print(
+            json.dumps(
+                {k: str(v.shape) if hasattr(v, "shape") else v for k, v in self._test_out.items()},
+                sort_keys=True, indent=4
+            )
+        )
+    
 def get_return_col(df, log=False):
     price_rat = df['adj_close'] / df['adj_close'].shift(-1)
     if log:
@@ -195,7 +241,11 @@ def get_return_col(df, log=False):
 
 
 def get_period_data(df, periods, date_col="date"):
-    dfs_by_period = [df[pd.to_datetime(df[date_col]).between(pd.to_datetime(period[0]), pd.to_datetime(period[1]))].sort_values(date_col, ascending=True) for period in periods]
+    dfs_by_period = [
+        df[
+            pd.to_datetime(df[date_col]).between(pd.to_datetime(period[0]), pd.to_datetime(period[1]))
+        ].sort_values(date_col, ascending=True) for period in periods
+    ]
     return dfs_by_period
 
 
