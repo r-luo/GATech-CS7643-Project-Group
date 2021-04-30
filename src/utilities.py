@@ -279,7 +279,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     return val_loss_per_batch
 
 
-def hyper_parameters_tunning(hyper_parameters, train_data):
+def hyper_parameters_tunning(hyper_parameters, train_data, criterion):
     """
 
     :param hyper_parameters: hyper parameters
@@ -296,7 +296,6 @@ def hyper_parameters_tunning(hyper_parameters, train_data):
 
     input_dim = train_data[0]["train"]["x"][0].shape[2]
     output_dim = train_data[0]["train"]["y"][0].shape[1]
-    criterion = torch.nn.MSELoss(reduction='mean')
     best_loss = float('inf')
     best_params = None
     for combo in combinations:
@@ -348,28 +347,17 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
     stock = [stock_name for i in range(test_y.shape[0])]
 
     # # predict the stock price in test_data
-    # inputs = test_x
-    # X_test = []
-    # for i in range(inputs.shape[0]-lag):
-    #     X_test.append(inputs[i:i+lag,:,:])
-    # X_test = np.array(X_test)
-    ## convert to pytorch tensor
     test_x = torch.from_numpy(test_x).type(torch.Tensor)
 
-    # predicted price dataframe
-    predicted_price = model(test_x).detach().numpy() 
-    #predicted_price = pd.DataFrame(predicted_price, columns = ['Predicted_Price'])
-    
-    # concat dataframes
-    price_dat = pd.DataFrame({'Stock': stock,
-                           'Date': date,
-                           'Real_Price': real_price,
-                           'Predicted_Price': predicted_price})
-    #price_dat = pd.concat([real_price_dat,predicted_price], axis = 1)
+    # predicted price
+    predicted_price = model(test_x).detach().numpy().squeeze()
+
+    # make the dataframe
+    price_dat = pd.DataFrame({'Stock': stock, 'Date': date, 'Real_Price': real_price, 'Predicted_Price': predicted_price})
     
     # Save the dataframe
     if save_dat:
-        price_dat.to_csv("Prediction_df_{}.csv".format(stock_name), index=False) 
+        price_dat.to_csv("Prediction_data/Prediction_df_{}.csv".format(stock_name), index=False) 
 
 
     # Visualising the results

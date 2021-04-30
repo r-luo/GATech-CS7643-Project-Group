@@ -1,8 +1,8 @@
 input_dim: 53 
 output_dim: 1 
 epochs_number: 50 
-validation loss: 1048957.375 
-hidden_dim: 64 
-num_layers: 2 
-learning_rate: 0.02 
-training total time: 224.58768105506897 
+validation loss: 1665.5938720703125 
+hidden_dim: 32 
+num_layers: 16 
+learning_rate: 0.01 
+training total time: 39.755056858062744 
