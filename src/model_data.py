@@ -105,12 +105,18 @@ class SingleTickerPipeline:
         self._feature_cols = df.drop(['date', 'target'], axis=1).columns.tolist()
         
         # match the target with data from the previous days
-        df = pd.concat([df[['target']].iloc[1:, :].reset_index(drop=True), df[self._feature_cols + ["date"]].iloc[:-1, :].reset_index(drop=True)], axis=1)
+        df = pd.concat(
+            [
+                df[['target', 'date']].rename({'date': 'target_date'}, axis=1).iloc[1:, :].reset_index(drop=True),
+                df[self._feature_cols + ["date"]].iloc[:-1, :].reset_index(drop=True)
+            ],
+            axis=1
+        )
         self._df = df
 
     def get_xy_arr(self, dfs, seq_dist=None):
         seq_dist = seq_dist or self._seq_dist
-        arrays = {"x": [], "y": [], "N": 0}
+        arrays = {"x": [], "y": [], "target_date": [], "N": 0}
         for df in dfs:
             N = df.shape[0]
             if N >= self.model_seq_len:
@@ -132,13 +138,16 @@ class SingleTickerPipeline:
                     arrays["x"].append(feature_subdf.values)
                     if self.target_type == "sequence":
                         arrays["y"].append(df[["target"]].iloc[(N - (i * seq_dist + self.model_seq_len)):(N - i * seq_dist)].values)
+                        arrays["target_date"].append(df[["target_date"]].iloc[(N - (i * seq_dist + self.model_seq_len)):(N - i * seq_dist)].values)
                     elif self.target_type == "single":
                         arrays["y"].append([df["target"].iloc[(N - i * seq_dist) - 1]])
+                        arrays["target_date"].append([df["target_date"].iloc[(N - i * seq_dist) - 1]])
                     else:
                         raise KeyError("Unknown target_type: target_type must be one of 'sequence' or 'single'!")
                     arrays["N"] += 1
         arrays["x"] = np.array(arrays['x'][::-1])
         arrays["y"] = np.array(arrays['y'][::-1])
+        arrays["target_date"] = np.array(arrays['target_date'][::-1])
         return arrays
 
     def create_train_array(self):
@@ -161,10 +170,12 @@ class SingleTickerPipeline:
                 "train":{
                     "x": train_xy_arrs["x"][:train_end_ind],
                     "y": train_xy_arrs["y"][:train_end_ind],
+                    "target_date": train_xy_arrs["target_date"][:train_end_ind],
                 },
                 "valid":{
                     "x": train_xy_arrs["x"][val_begin_ind:val_end_ind],
                     "y": train_xy_arrs["y"][val_begin_ind:val_end_ind],
+                    "target_date": train_xy_arrs["target_date"][val_begin_ind:val_end_ind],
                 },
             }
             folds[i] = fold_arrs
