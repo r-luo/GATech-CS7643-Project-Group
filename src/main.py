@@ -3,8 +3,8 @@ from LSTM import LSTM
 from pathlib import Path
 import model_data as md
 import sys
-sys.path.append(Path(".").absolute().parent.as_posix())
 import time
+sys.path.append(Path(".").absolute().parent.as_posix())
 
 
 if __name__ == "__main__":
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         max_overlap=20,
         train_periods=[
             # ("2000-01-01", "2006-12-31"),
-            ("2009-01-01", "2018-12-31"),
+            ("2018-01-01", "2018-12-31"),
         ],
         test_periods=[
             # ("2007-01-01", "2008-12-31"),
@@ -61,14 +61,14 @@ if __name__ == "__main__":
     input_dim = data_in_folds[0]["train"]["x"][0].shape[2]
     output_dim = data_in_folds[0]["train"]["y"][0].shape[1]
     # define criterion
-    criterion = torch.nn.MSELoss(reduction='mean')
+    criterion = torch.nn.L1Loss(reduction='mean')
     """
     =====================================================
     Hyper parameters tuning with rolling cross validation
     =====================================================
     """
-    hyper_parameters = {"hidden_dim": [16, 32, 64], "num_layers": [2, 4, 8], "num_epochs": [50], "learning_rate": [0.02]}
-    best_combo = hyper_parameters_tunning(hyper_parameters, data_in_folds)
+    hyper_parameters = {"hidden_dim": [32, 64, 128], "num_layers": [8, 16, 32], "num_epochs": [50], "learning_rate": [0.01]}
+    best_combo = hyper_parameters_tunning(hyper_parameters, data_in_folds, criterion)
     """
     ================================================
     get data for final training

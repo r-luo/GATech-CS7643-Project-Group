@@ -279,7 +279,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     return val_loss_per_batch
 
 
-def hyper_parameters_tunning(hyper_parameters, train_data):
+def hyper_parameters_tunning(hyper_parameters, train_data, criterion):
     """
 
     :param hyper_parameters: hyper parameters
@@ -296,7 +296,6 @@ def hyper_parameters_tunning(hyper_parameters, train_data):
 
     input_dim = train_data[0]["train"]["x"][0].shape[2]
     output_dim = train_data[0]["train"]["y"][0].shape[1]
-    criterion = torch.nn.MSELoss(reduction='mean')
     best_loss = float('inf')
     best_params = None
     for combo in combinations:
