@@ -31,11 +31,11 @@ if __name__ == "__main__":
         max_overlap=20,
         train_periods=[
             # ("2000-01-01", "2006-12-31"),
-            ("2009-01-01", "2018-12-31"),
+            ("2016-01-01", "2018-12-31"),
         ],
         test_periods=[
             # ("2007-01-01", "2008-12-31"),
-            ("2019-01-01", "2021-04-01"),
+            ("2020-01-01", "2021-04-01"),
         ],
         cross_validation_folds=5, )
     # Prepare data into folds
@@ -45,6 +45,7 @@ if __name__ == "__main__":
     #
     train_data = single_ticker_pipeline._train_out
     test_data = single_ticker_pipeline._test_out
+
     """
     ======================================================================
     convert from numpy data type to pytorch and divide training data into batches
@@ -108,10 +109,15 @@ if __name__ == "__main__":
              "learning_rate: {} \n".format(learning_rate), "training total time: {} \n".format(end_time-start_time)]
     file.writelines(lines)
     file.close()
-    # """
-    # Curves predictions
-    # """
-    #
+
+    """
+    ============================
+    Prediction table 
+    ============================
+    """
+    # output the prediction table and curve
+    model_pred_name = "LSTM_Prediction_{}".format(stock_name)
+    prediction(model, test_data, stock_name, model_pred_name, True, True)
 
 
     #

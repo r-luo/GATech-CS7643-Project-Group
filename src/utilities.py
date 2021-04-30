@@ -318,7 +318,7 @@ def hyper_parameters_tunning(hyper_parameters, train_data):
     return best_params
 
 
-def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name):
+def prediction(model, test_data, stock_name, model_name, save_dat=True, prediction_curve=True):
     """
     Plot the prediction curve of real stock price vs. predicted stock price.
     :param model: nlp model trained
@@ -331,46 +331,56 @@ def prediction_curve(model, real_price_data, test_data, lag, scaler, model_name)
     """
     
     # Preprocessing the test dataset
-    test_data['Close'] = scaler.fit_transform(test_data['Close'].values.reshape(-1,1))
-    test_data = test_data['Close']
-    ## change the input shape
-    test_data = np.expand_dims(test_data, axis=1)
+    test_x = test_data['x']
+    test_y = test_data['y']
+    test_date = test_data['target_date']
     
-    if type(real_price_data) != np.ndarray:
-        real_price_data = real_price_data.to_numpy()
-
-    if type(test_data) != np.ndarray:
-        test_data = test_data.to_numpy()
+    if type(test_x) != np.ndarray:
+        test_x = test_x.to_numpy()
+    if type(test_y) != np.ndarray:
+        test_y = test_y.to_numpy()
+    if type(test_date) != np.ndarray:
+        test_date = test_date.to_numpy()
 
     # real price dataframe
-    real_price = real_price_data[lag:,]
-    real_price = pd.DataFrame(real_price, columns = ['Date','Real_Price'])
-    real_price['Date'] = pd.to_datetime(real_price.Date).dt.date
-    
-    # predict the stock price in test_data
-    inputs = test_data
-    X_test = []
-    for i in range(len(inputs)-lag):
-        X_test.append(inputs[i:i+lag])
-    X_test = np.array(X_test)
+    real_price = test_y.squeeze()
+    date = test_date.squeeze()
+    stock = [stock_name for i in range(test_y.shape[0])]
+
+    # # predict the stock price in test_data
+    # inputs = test_x
+    # X_test = []
+    # for i in range(inputs.shape[0]-lag):
+    #     X_test.append(inputs[i:i+lag,:,:])
+    # X_test = np.array(X_test)
     ## convert to pytorch tensor
-    X_test = torch.from_numpy(X_test).type(torch.Tensor)
+    test_x = torch.from_numpy(test_x).type(torch.Tensor)
 
     # predicted price dataframe
-    predicted_price = model(X_test).detach().numpy()
-    predicted_price = scaler.inverse_transform(predicted_price)   
-    predicted_price = pd.DataFrame(predicted_price, columns = ['Predicted_Price'])
+    predicted_price = model(test_x).detach().numpy() 
+    #predicted_price = pd.DataFrame(predicted_price, columns = ['Predicted_Price'])
     
-    # concat two dataframes
-    price_dat = pd.concat([real_price,predicted_price], axis = 1)
+    # concat dataframes
+    price_dat = pd.DataFrame({'Stock': stock,
+                           'Date': date,
+                           'Real_Price': real_price,
+                           'Predicted_Price': predicted_price})
+    #price_dat = pd.concat([real_price_dat,predicted_price], axis = 1)
     
+    # Save the dataframe
+    if save_dat:
+        price_dat.to_csv("Prediction_df_{}.csv".format(stock_name), index=False) 
+
+
     # Visualising the results
-    price_dat.plot(kind='line', x = "Date", y = ['Real_Price','Predicted_Price'], color = ['red','blue'],label = ['Real Stock Price','Predicted Stock Price'])
-    plt.title('Stock Price Prediction')
-    plt.xlabel('Time')
-    plt.ylabel('Stock Price')
-    plt.legend()
-    plt.savefig(model_name)
+    if prediction_curve:
+        price_dat.plot(kind='line', x = "Date", y = ['Real_Price','Predicted_Price'], color = ['red','blue'],label = ['Real Stock Price','Predicted Stock Price'])
+        plt.title('Stock Price Prediction')
+        plt.xlabel('Time')
+        plt.ylabel('Stock Price')
+        plt.legend()
+        plt.savefig(model_name)
+
     
 def chunks(lst, n):
     """
