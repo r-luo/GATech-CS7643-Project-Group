@@ -1,7 +1,7 @@
-from utilities import *
-from LSTM import LSTM
+from .utilities import *
+from .LSTM import LSTM
 from pathlib import Path
-import model_data as md
+from . import model_data as md
 import sys
 import time
 sys.path.append(Path(".").absolute().parent.as_posix())
