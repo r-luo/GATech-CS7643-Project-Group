@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import copy
 import torch
-from LSTM import LSTM
+from .LSTM import LSTM
 
 
 def split_data(x, y, batch_size):
