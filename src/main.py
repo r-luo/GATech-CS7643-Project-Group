@@ -1,22 +1,28 @@
-from sklearn.preprocessing import MinMaxScaler
 from utilities import *
 from LSTM import LSTM
-import sys
 from pathlib import Path
 import model_data as md
 import sys
 sys.path.append(Path(".").absolute().parent.as_posix())
+import time
 
 
 if __name__ == "__main__":
     """
+    ===================================
     run script as main.py stock, 
-    i.e. main.py TEAM
+    i.e. python main.py TEAM
+    ======================================
     """
 
     """
-    Load data
+    ============================
+    Load data from pipeline
+    ============================
     """
+    start_time = time.time()
+    # stock name is from input arguments
+    stock_name = sys.argv[1]
     # define data config
     single_ticker_pipeline = md.SingleTickerPipeline(
         target="price",
@@ -24,41 +30,62 @@ if __name__ == "__main__":
         model_seq_len=30,
         max_overlap=20,
         train_periods=[
-            ("2000-01-01", "2006-12-31"),
+            # ("2000-01-01", "2006-12-31"),
             ("2009-01-01", "2018-12-31"),
         ],
         test_periods=[
-            ("2007-01-01", "2008-12-31"),
+            # ("2007-01-01", "2008-12-31"),
             ("2019-01-01", "2021-04-01"),
         ],
         cross_validation_folds=5, )
     # Prepare data into folds
-    single_ticker_pipeline.prepare_data(sys.argv[1])
+    single_ticker_pipeline.prepare_data(stock_name)
     # load data
-    single_ticker_pipeline.load_data(sys.argv[1])
+    single_ticker_pipeline.load_data(stock_name)
     #
     train_data = single_ticker_pipeline._train_out
     test_data = single_ticker_pipeline._test_out
     """
-    convert from numpy data type to pytorch and divide training data into 
+    ======================================================================
+    convert from numpy data type to pytorch and divide training data into batches
+    data_in_folds are used for rolling cross validation
+    ======================================================================
     """
-    train_data = convert_data(train_data)
-    # """
-    # set model hyper parameters
-    # """
-    input_dim = train_data[0]["train"]["x"][0].shape[2]
-    output_dim = train_data[0]["train"]["y"][0].shape[1]
+    # get data for rolling cross validation
+    data_in_folds = convert_data(train_data)
+    """
+    =================================================================
+    get input & output dimensions and set up optimization criterion
+    =================================================================
+    """
+    input_dim = data_in_folds[0]["train"]["x"][0].shape[2]
+    output_dim = data_in_folds[0]["train"]["y"][0].shape[1]
     # define criterion
     criterion = torch.nn.MSELoss(reduction='mean')
-    # Model name for saving
-    model_name = "LSTM_trial_V0"
     """
-    Hyper parameters tuning
+    =====================================================
+    Hyper parameters tuning with rolling cross validation
+    =====================================================
     """
-    hyper_parameters = {"hidden_dim": [16, 32, 64], "num_layers": [2, 4, 8], "num_epochs": [15], "learning_rate": [0.01]}
-    best_combo = hyper_parameters_tunning(hyper_parameters, train_data)
+    hyper_parameters = {"hidden_dim": [16, 32, 64], "num_layers": [2, 4, 8], "num_epochs": [50], "learning_rate": [0.02]}
+    best_combo = hyper_parameters_tunning(hyper_parameters, data_in_folds)
     """
-    Start training
+    ================================================
+    get data for final training
+    ================================================
+    """
+    # get all data for final training
+    #
+    # x_all = np.append(train_data[len(train_data)-1]["train"]["x"], train_data[len(train_data)-1]["valid"]["x"], axis=0)
+    # y_all = np.append(train_data[len(train_data)-1]["train"]["y"], train_data[len(train_data)-1]["valid"]["y"], axis=0)
+    x_all = train_data['_all_']["x"]
+    y_all = train_data['_all_']['y']
+    # split data and convert into batches
+    x_train, y_train, x_valid, y_valid = split_data(x_all, y_all, batch_size=64)
+    """
+    ==================================================
+    Start training, using all the data in training set
+    ===================================================
     """
     hidden_dim = best_combo["hidden_dim"]
     num_layers = best_combo["num_layers"]
@@ -66,12 +93,21 @@ if __name__ == "__main__":
     learning_rate = best_combo["learning_rate"]
     # Use LSTM model
     model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
-    x_train = train_data[len(train_data)-1]["train"]["x"]
-    y_train = train_data[len(train_data)-1]["train"]["y"]
-    x_valid = train_data[len(train_data)-1]["valid"]["x"]
-    y_valid = train_data[len(train_data)-1]["valid"]["y"]
-    train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, learning_rate, model_name, True, True)
     #
+    model_name = "LSTM_{}".format(stock_name)
+    val_loss = train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, learning_rate, model_name, True, True)
+    #
+    end_time = time.time()
+    # save training config file
+    saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
+    log_file = "{}_config.txt".format(model_name)
+    file = open(os.path.join(saved_folder, log_file), "w")
+    lines = ["input_dim: {} \n".format(input_dim), "output_dim: {} \n".format(output_dim),
+             "epochs_number: {} \n".format(num_epochs), "validation loss: {} \n".format(val_loss),
+             "hidden_dim: {} \n".format(hidden_dim), "num_layers: {} \n".format(num_layers),
+             "learning_rate: {} \n".format(learning_rate), "training total time: {} \n".format(end_time-start_time)]
+    file.writelines(lines)
+    file.close()
     # """
     # Curves predictions
     # """
