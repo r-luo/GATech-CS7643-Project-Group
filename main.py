@@ -113,20 +113,8 @@ if __name__ == "__main__":
              "learning_rate: {} \n".format(learning_rate), "training total time: {} \n".format(end_time-start_time)]
     file.writelines(lines)
     file.close()
-    # """
-    # Curves predictions
-    # """
-    #
 
 
-    #
-    #
-    #
-    # """
-    # Prediction Curve
-    # """
-    # # model_name_pred = "LSTM_prediction_V0"
-    # # real_price_data = data[['Date','Close']]
-    # # test_data = data[['Close']]
-    # #
-    # # prediction_curve(model, real_price_data, test_data, lag, scaler, model_name_pred)
+
+    
+

@@ -340,7 +340,7 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
     # Preprocessing the test dataset
     test_x = test_data['x']
     test_y = test_data['y']
-    test_date = test_data['target_date']
+    test_date = test_data['prediction_date']
     
     if type(test_x) != np.ndarray:
         test_x = test_x.to_numpy()
@@ -365,7 +365,7 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
     
     # Save the dataframe
     if save_dat:
-        price_dat.to_csv("Prediction_data/Prediction_df_{}.csv".format(stock_name), index=False) 
+        price_dat.to_csv("prediction_data/Prediction_df_{}.csv".format(stock_name), index=False) 
 
 
     # Visualising the results
