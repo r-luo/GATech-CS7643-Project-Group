@@ -59,8 +59,8 @@ if __name__ == "__main__":
     get input & output dimensions and set up optimization criterion
     =================================================================
     """
-    input_dim = data_in_folds[0]["train"]["x"][0].shape[2]
-    output_dim = data_in_folds[0]["train"]["y"][0].shape[1]
+    # input_dim = data_in_folds[0]["train"]["x"][0].shape[2]
+    # output_dim = data_in_folds[0]["train"]["y"][0].shape[1]
     # define criterion
     criterion = torch.nn.L1Loss(reduction='mean')
     """
@@ -81,6 +81,8 @@ if __name__ == "__main__":
     # y_all = np.append(train_data[len(train_data)-1]["train"]["y"], train_data[len(train_data)-1]["valid"]["y"], axis=0)
     x_all = train_data['_all_']["x"]
     y_all = train_data['_all_']['y']
+    # # delete untransformed data
+    # x_all = x_all[:,:,1:]
     # split data and convert into batches
     x_train, y_train, x_valid, y_valid = split_data(x_all, y_all, batch_size=64)
     """
@@ -92,6 +94,8 @@ if __name__ == "__main__":
     # num_layers = best_combo["num_layers"]
     # num_epochs = best_combo["num_epochs"]
     # learning_rate = best_combo["learning_rate"]
+    input_dim = x_train[0].shape[2]
+    output_dim = y_train[0].shape[1]
     hidden_dim = 84
     num_layers = 2
     num_epochs = 100
