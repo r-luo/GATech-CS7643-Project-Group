@@ -226,8 +226,8 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
             # print(y_train_pred.shape)
 
             train_loss = criterion(y_train_pred, target)
-            print("y_train_pred: ", torch.transpose(y_train_pred, 0, 1))
-            print("target: ", torch.transpose(target, 0, 1))
+            # print("y_train_pred: ", torch.transpose(y_train_pred, 0, 1))
+            # print("target: ", torch.transpose(target, 0, 1))
 
             optimizer.zero_grad()
             train_loss.backward()

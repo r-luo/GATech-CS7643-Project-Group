@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # learning_rate = best_combo["learning_rate"]
     hidden_dim = 84
     num_layers = 2
-    num_epochs = 60
+    num_epochs = 100
     learning_rate = 0.002
     # Use LSTM model
     model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     #
     end_time = time.time()
     # save training config file
-    saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
+    saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '.', 'model'))
     log_file = "{}_config.txt".format(model_name)
     file = open(os.path.join(saved_folder, log_file), "w")
     lines = ["input_dim: {} \n".format(input_dim), "output_dim: {} \n".format(output_dim),
