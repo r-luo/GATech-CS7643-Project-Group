@@ -4,7 +4,7 @@ import numpy as np
 import logging
 import pickle
 import json
-# import progressbar
+import progressbar
 
 LOG = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
