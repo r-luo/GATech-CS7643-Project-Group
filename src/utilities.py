@@ -223,7 +223,11 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
             # training
             model.train()
             y_train_pred = model(x_train_sequence)
+            # print(y_train_pred.shape)
+
             train_loss = criterion(y_train_pred, target)
+            print("y_train_pred: ", torch.transpose(y_train_pred, 0, 1))
+            print("target: ", torch.transpose(target, 0, 1))
 
             optimizer.zero_grad()
             train_loss.backward()
@@ -243,8 +247,12 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
 
                 # training
                 y_val_pred = model(x_val_sequence)
+                # print(x_val_sequence.shape)
                 val_loss = criterion(y_val_pred, val_target)
-
+                # print("y_val_pred: ", torch.transpose(y_val_pred, 0, 1))
+                # print("val target: ", val_target)
+                # print("difference: ", y_val_pred - val_target)
+                # print("val loss: ", val_loss)
                 #
                 val_loss_per_batch += val_loss.item()
             train_loss_per_batch += val_loss_per_batch/len(x_validation)
@@ -261,7 +269,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
             print("Early stopping!")
             break
         #
-        print("Epoch ", epoch, "training MSE: ", train_loss_per_batch, "validation MSE: ", val_loss_per_batch)
+        print("Epoch ", epoch, "training MAE: ", train_loss_per_batch, "validation MAE: ", val_loss_per_batch)
         train_hist.append(train_loss_per_batch)
         val_hist.append(val_loss_per_batch)
 
@@ -272,7 +280,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         plt.plot(val_hist, label="validation loss")
         plt.legend()
         plt.xlabel("number of epochs")
-        plt.ylabel("loss - MSE")
+        plt.ylabel("loss - MAE")
         plt.title("training loss - {}".format(model_name))
         plt.savefig(os.path.join(saved_folder, "{}.jpg".format(model_name)))
 

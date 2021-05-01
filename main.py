@@ -1,7 +1,7 @@
-from .utilities import *
-from .LSTM import LSTM
+from src.utilities import *
+from src.LSTM import LSTM
 from pathlib import Path
-from . import model_data as md
+import src.model_data as md
 import sys
 import time
 sys.path.append(Path(".").absolute().parent.as_posix())
@@ -27,11 +27,12 @@ if __name__ == "__main__":
     single_ticker_pipeline = md.SingleTickerPipeline(
         target="price",
         target_type="single",
-        model_seq_len=30,
-        max_overlap=20,
+        model_seq_len=5,
+        max_overlap=2,
+        # normalization_method="quantile",
         train_periods=[
-            # ("2000-01-01", "2006-12-31"),
-            ("2018-01-01", "2018-12-31"),
+            ("2000-01-01", "2006-12-31"),
+            ("2009-01-01", "2018-12-31"),
         ],
         test_periods=[
             # ("2007-01-01", "2008-12-31"),
@@ -42,10 +43,9 @@ if __name__ == "__main__":
     single_ticker_pipeline.prepare_data(stock_name)
     # load data
     single_ticker_pipeline.load_data(stock_name)
-    # Get train and test data
+    #
     train_data = single_ticker_pipeline._train_out
     test_data = single_ticker_pipeline._test_out
-
     """
     ======================================================================
     convert from numpy data type to pytorch and divide training data into batches
@@ -68,8 +68,8 @@ if __name__ == "__main__":
     Hyper parameters tuning with rolling cross validation
     =====================================================
     """
-    hyper_parameters = {"hidden_dim": [32], "num_layers": [16], "num_epochs": [50], "learning_rate": [0.01]}
-    best_combo = hyper_parameters_tunning(hyper_parameters, data_in_folds, criterion)
+    # hyper_parameters = {"hidden_dim": [32], "num_layers": [2], "num_epochs": [65], "learning_rate": [0.001]}
+    # best_combo = hyper_parameters_tunning(hyper_parameters, data_in_folds, criterion)
     """
     ================================================
     get data for final training
@@ -88,10 +88,14 @@ if __name__ == "__main__":
     Start training, using all the data in training set
     ===================================================
     """
-    hidden_dim = best_combo["hidden_dim"]
-    num_layers = best_combo["num_layers"]
-    num_epochs = best_combo["num_epochs"]
-    learning_rate = best_combo["learning_rate"]
+    # hidden_dim = best_combo["hidden_dim"]
+    # num_layers = best_combo["num_layers"]
+    # num_epochs = best_combo["num_epochs"]
+    # learning_rate = best_combo["learning_rate"]
+    hidden_dim = 84
+    num_layers = 2
+    num_epochs = 60
+    learning_rate = 0.002
     # Use LSTM model
     model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
     #
@@ -109,15 +113,10 @@ if __name__ == "__main__":
              "learning_rate: {} \n".format(learning_rate), "training total time: {} \n".format(end_time-start_time)]
     file.writelines(lines)
     file.close()
-
-    """
-    ============================
-    Prediction table 
-    ============================
-    """
-    # output the prediction table and curve
-    model_pred_name = "LSTM_Prediction_{}".format(stock_name)
-    prediction(model, test_data, stock_name, model_pred_name, True, True)
+    # """
+    # Curves predictions
+    # """
+    #
 
 
     #
