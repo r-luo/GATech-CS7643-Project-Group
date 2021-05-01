@@ -205,7 +205,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
     # define minimum loss and epoch no improve for early stopping
     epochs_no_improve = 0
     min_val_loss = float('inf')
-    n_epoch_stop = 10
+    n_epoch_stop = 15
     # folder to save the plot and model
     saved_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
     # define optimizer
@@ -250,7 +250,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
                 # print(x_val_sequence.shape)
                 val_loss = criterion(y_val_pred, val_target)
                 # print("y_val_pred: ", torch.transpose(y_val_pred, 0, 1))
-                # print("val target: ", val_target)
+                # print("val target: ", torch.transpose(val_target, 0, 1))
                 # print("difference: ", y_val_pred - val_target)
                 # print("val loss: ", val_loss)
                 #
@@ -263,6 +263,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
             if model_save:
                 path = os.path.join(saved_folder, model_name)
                 torch.save(model, path)
+            epochs_no_improve = 0
         else:
             epochs_no_improve += 1
         if epoch > 5 and epochs_no_improve == n_epoch_stop:
