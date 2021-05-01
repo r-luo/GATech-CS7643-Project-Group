@@ -24,28 +24,48 @@ if __name__ == "__main__":
     # stock name is from input arguments
     stock_name = sys.argv[1]
     # define data config
-    single_ticker_pipeline = md.SingleTickerPipeline(
-        target="price",
-        target_type="single",
-        model_seq_len=5,
-        max_overlap=2,
-        # normalization_method="quantile",
-        train_periods=[
-            ("2000-01-01", "2006-12-31"),
-            ("2009-01-01", "2018-12-31"),
-        ],
-        test_periods=[
-            # ("2007-01-01", "2008-12-31"),
-            ("2019-01-01", "2021-04-01"),
-        ],
-        cross_validation_folds=5, )
-    # Prepare data into folds
-    single_ticker_pipeline.prepare_data(stock_name)
-    # load data
-    single_ticker_pipeline.load_data(stock_name)
+    # single ticker:
+    train_single_ticker = False
+    if stock_name != "all":
+        ticker_pipeline = md.SingleTickerPipeline(
+            target="price",
+            target_type="single",
+            model_seq_len=5,
+            max_overlap=2,
+            # normalization_method="quantile",
+            train_periods=[
+                ("2000-01-01", "2006-12-31"),
+                ("2009-01-01", "2018-12-31"),
+            ],
+            test_periods=[
+                # ("2007-01-01", "2008-12-31"),
+                ("2019-01-01", "2021-04-01"),
+            ],
+            cross_validation_folds=5, )
+        # Prepare data into folds
+        ticker_pipeline.prepare_data(stock_name)
+        # load data
+        ticker_pipeline.load_data(stock_name)
+    else:
+        ticker_pipeline = md.MultiTickerPipeline(
+            target="price",
+            target_type="single",
+            model_seq_len=5,
+            max_overlap=2,
+            # normalization_method="quantile",
+            train_periods=[
+                ("2012-01-01", "2019-12-31"),
+            ],
+            test_periods=[
+                ("2020-01-01", "2021-04-01"),
+            ],
+            cross_validation_folds=5, )
+        # Prepare data into folds
+        # ticker_pipeline.prepare_data(['_all_'])
+        ticker_pipeline.load_data("96tickers")
     #
-    train_data = single_ticker_pipeline._train_out
-    test_data = single_ticker_pipeline._test_out
+    train_data = ticker_pipeline._train_out
+    test_data = ticker_pipeline._test_out
     """
     ======================================================================
     convert from numpy data type to pytorch and divide training data into batches
@@ -53,7 +73,7 @@ if __name__ == "__main__":
     ======================================================================
     """
     # get data for rolling cross validation
-    data_in_folds = convert_data(train_data)
+    # data_in_folds = convert_data(train_data)
     """
     =================================================================
     get input & output dimensions and set up optimization criterion
@@ -82,7 +102,7 @@ if __name__ == "__main__":
     x_all = train_data['_all_']["x"]
     y_all = train_data['_all_']['y']
     # # delete untransformed data
-    # x_all = x_all[:,:,1:]
+    # x_all = x_all[:,:,:1]
     # split data and convert into batches
     x_train, y_train, x_valid, y_valid = split_data(x_all, y_all, batch_size=64)
     """
@@ -96,14 +116,17 @@ if __name__ == "__main__":
     # learning_rate = best_combo["learning_rate"]
     input_dim = x_train[0].shape[2]
     output_dim = y_train[0].shape[1]
-    hidden_dim = 84
+    hidden_dim = 128
     num_layers = 2
-    num_epochs = 100
+    num_epochs = 300
     learning_rate = 0.002
     # Use LSTM model
     model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
     #
-    model_name = "LSTM_{}".format(stock_name)
+    if sys.argv[1] != "all":
+        model_name = "LSTM_{}".format(stock_name)
+    else:
+        model_name = "LSTM_all_tickers"
     val_loss = train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, learning_rate, model_name, True, True)
     #
     end_time = time.time()

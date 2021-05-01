@@ -7,12 +7,15 @@ import sys
 Load data from pipeline
 ============================
 """
-stock_name = sys.argv[1]
-
+if len(sys.argv) == 2:
+    stock_name = sys.argv[1]
+else:
+    stock_name = sys.argv[2]
+#
 single_ticker_pipeline = md.SingleTickerPipeline(
         target="price",
         target_type="single",
-        model_seq_len=5,
+        model_seq_len=4,
         max_overlap=2,
         # normalization_method="quantile",
         train_periods=[
@@ -38,15 +41,24 @@ test_data = single_ticker_pipeline._test_out
 Load the trained model
 ============================
 """
-model_name = "LSTM_{}".format(stock_name)
-model = torch.load("model/{}".format(model_name))
+if len(sys.argv) == 2:
+    model_name = "LSTM_{}".format(stock_name)
+    model = torch.load("model/{}".format(model_name))
 
 
-"""
-============================
-Prediction
-============================
-"""
-pred_model_name = "LSTM_Prediction_{}".format(stock_name)
-prediction(model, test_data, stock_name, pred_model_name, True, True)
+    """
+    ============================
+    Prediction
+    ============================
+    """
+
+    pred_model_name = "LSTM_Prediction_{}".format(stock_name)
+    prediction(model, test_data, stock_name, pred_model_name, True, True, False)
+else:
+    model_name = "LSTM_all_tickers"
+    model = torch.load("model/{}".format(model_name))
+    # prediction
+    pred_model_name = "LSTM_Prediction_{}_with_AllTrained".format(stock_name)
+    print("stock name: ", stock_name)
+    prediction(model, test_data, stock_name, pred_model_name, True, True, False)
 

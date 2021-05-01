@@ -326,7 +326,7 @@ def hyper_parameters_tunning(hyper_parameters, train_data, criterion):
     return best_params
 
 
-def prediction(model, test_data, stock_name, model_name, save_dat=True, prediction_curve=True):
+def prediction(model, test_data, stock_name, model_name, save_dat=True, prediction_curve=True, normalized=True):
     """
     Plot the prediction curve of real stock price vs. predicted stock price.
     :param model: nlp model trained
@@ -340,6 +340,9 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
     
     # Preprocessing the test dataset
     test_x = test_data['x']
+    # remove untransformed data
+    if normalized:
+        test_x = test_x[:,:,1:]
     test_y = test_data['y']
     test_date = test_data['prediction_date']
     
@@ -366,9 +369,9 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
     
     # Save the dataframe
     if save_dat:
-        price_dat.to_csv("prediction_data/Prediction_df_{}.csv".format(stock_name), index=False) 
+        price_dat.to_csv("prediction_data/Prediction_of_{}.csv".format(model_name), index=False)
 
-
+    saved_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'prediction_data'))
     # Visualising the results
     if prediction_curve:
         price_dat.plot(kind='line', x = "Date", y = ['Real_Price','Predicted_Price'], color = ['red','blue'],label = ['Real Stock Price','Predicted Stock Price'])
@@ -376,7 +379,7 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
         plt.xlabel('Time')
         plt.ylabel('Stock Price')
         plt.legend()
-        plt.savefig(model_name)
+        plt.savefig(os.path.join(saved_path, model_name))
 
     
 def chunks(lst, n):
