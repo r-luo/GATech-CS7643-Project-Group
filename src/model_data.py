@@ -469,6 +469,16 @@ class MultiTickerPipeline(SingleTickerPipeline):
         LOG.info("  Writing test arrays...")
         write_pickle_file(self._test_out, self._save_path.joinpath("test.pkl"))
         
+    def load_data(self, path):
+        self._save_path = self.output_path.joinpath(path)
+        LOG.info(f"Loading generated data from {self._save_path.as_posix()}...")
+        if not self._save_path.exists():
+            raise FileNotFoundError("Directory doesn't exist, can't load data!")
+        LOG.info("  Loading train folds...")
+        self._train_out = load_pickle_file(self._save_path.joinpath("train.pkl"))
+        LOG.info("  Loading test arrays...")
+        self._test_out = load_pickle_file(self._save_path.joinpath("test.pkl"))
+        
     def prepare_data(self, tickers=["_all_"]):
         """
         
