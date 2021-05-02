@@ -82,7 +82,7 @@ if __name__ == "__main__":
             ],
             cross_validation_folds=5, )
         # Prepare data into folds
-        # ticker_pipeline.prepare_data(['_all_'])
+        ticker_pipeline.prepare_data(['_all_'])
         ticker_pipeline.load_data("96tickers")
     #
     train_data = ticker_pipeline._train_out
@@ -135,8 +135,8 @@ if __name__ == "__main__":
     # learning_rate = best_combo["learning_rate"]
     input_dim = x_train[0].shape[2]
     output_dim = y_train[0].shape[1]
-    hidden_dim = 192
-    num_layers = 8
+    hidden_dim = 128
+    num_layers = 2
     num_epochs = 400
     learning_rate = 0.001
     # Use LSTM model

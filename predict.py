@@ -12,10 +12,10 @@ parser = argparse.ArgumentParser(
     description="prediction pipeline"
 )
 parser.add_argument("-t", help="name of the ticker to predict")
-parser.add_argument("-a", help="model trained with all ticker or not, y or n")
+parser.add_argument("-a", help="model trained with all ticker or not, ”y“ or ”n")
 parser.add_argument("-m", help="LSTM or GRU")
 
-args = parser.parse_args()
+args = parser.parse_args() 
 
 stock_name = args.t
 allTicker = args.a
@@ -50,8 +50,7 @@ if __name__ == "__main__":
     single_ticker_pipeline.prepare_data(stock_name)
     # load data
     single_ticker_pipeline.load_data(stock_name)
-    #
-    train_data = single_ticker_pipeline._train_out
+    # get the test_data
     test_data = single_ticker_pipeline._test_out
 
 
@@ -60,6 +59,7 @@ if __name__ == "__main__":
     Load the trained model
     ============================
     """
+    criterion = torch.nn.L1Loss(reduction='mean')
     if allTicker == "n":
         # model trained with single ticker
         if model_type == "LSTM":
@@ -69,16 +69,17 @@ if __name__ == "__main__":
         # load model
         model = torch.load(os.path.join("model", model_name))
         # prediction and save
-        pred_model_name = "{}_Prediction_{}".format(model_type, stock_name)
-        prediction(model, test_data, stock_name, pred_model_name, True, True, False)
+        pred_model_name = "{}_Prediction_{}_SingleTrained".format(model_type, stock_name)
+        prediction(model, test_data, criterion, stock_name, model_type, allTicker, pred_model_name, True, True, True, False)
     else:
+        # model trained with all tickers
         if model_type == "LSTM":
             model_name = "LSTM_all_tickers"
         else:
             model_name = "GRU_all_tickers"
-        #
+        # load model
         model = torch.load(os.path.join("model", model_name))
-        # prediction
-        pred_model_name = "{}_Prediction_{}_with_AllTrained".format(model_type, stock_name)
-        prediction(model, test_data, stock_name, pred_model_name, True, True, False)
+        # prediction and save
+        pred_model_name = "{}_Prediction_{}_AllTrained".format(model_type, stock_name)
+        prediction(model, test_data, criterion, stock_name, model_type, allTicker, pred_model_name, True, True, True, False)
 

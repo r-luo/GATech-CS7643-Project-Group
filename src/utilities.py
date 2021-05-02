@@ -344,7 +344,7 @@ def hyper_parameters_tunning(hyper_parameters, train_data, criterion, model_type
     return best_params
 
 
-def prediction(model, test_data, stock_name, model_name, save_dat=True, prediction_curve=True, normalized=True):
+def prediction(model, test_data, criterion, stock_name, model_type, all_ticker, model_name, save_dat=True, save_result=True, prediction_curve=True, normalized=True):
     """
     Plot the prediction curve of real stock price vs. predicted stock price.
     :param model: nlp model trained
@@ -372,28 +372,56 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
         test_date = test_date.to_numpy()
 
     # real price dataframe
+    real_price_tensor = torch.from_numpy(test_y)
     real_price = test_y.squeeze()
     date = test_date.squeeze()
     stock = [stock_name for i in range(test_y.shape[0])]
 
-    # # predict the stock price in test_data
+    # predict the stock price in test_data
     test_x = torch.from_numpy(test_x).type(torch.Tensor)
 
     # predicted price
-    predicted_price = model(test_x).detach().numpy().squeeze()
+    predicted_price_tensor = model(test_x)
+    
+    # MAE
+    mae = criterion(predicted_price_tensor, real_price_tensor)    
+    predicted_price = predicted_price_tensor.detach().numpy().squeeze()
 
     # make the dataframe
     price_dat = pd.DataFrame({'Stock': stock, 'Date': date, 'Real_Price': real_price, 'Predicted_Price': predicted_price})
     
     # Save the dataframe
     if save_dat:
-        price_dat.to_csv("prediction_data/Prediction_of_{}.csv".format(model_name), index=False)
+        price_dat.to_csv("prediction_data/{}.csv".format(model_name), index=False)
+
+    # Save result file
+    if save_result:
+        if all_ticker == "n":
+            folder_config = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
+            log_file = "{}_{}_config.txt".format(model_type, stock_name)   
+        else:
+            folder_config = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'model'))
+            log_file = "{}_all_tickers_config.txt".format(model_type)
+
+        folder_result = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'prediction_data'))
+        result_file = "{}_result.txt".format(model_name)
+
+        with open(os.path.join(folder_config, log_file), "r") as firstfile, open(os.path.join(folder_result, result_file), "w") as secondfile:
+            # read content from first file
+            for line in firstfile:
+                # write content to second file
+                secondfile.write(line)
+            
+            secondfile.writelines(["prediction loss: {} \n".format(mae)])
+        firstfile.close()
+        secondfile.close()
 
     saved_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'prediction_data'))
     # Visualising the results
     if prediction_curve:
         price_dat.plot(kind='line', x = "Date", y = ['Real_Price','Predicted_Price'], color = ['red','blue'],label = ['Real Stock Price','Predicted Stock Price'])
-        plt.title('Stock Price Prediction - {}'.format(model_name))
+        plt.title('{}_Curve'.format(model_name), fontsize = 12, y = 1.05)
+        plt.suptitle('MAE: {}'.format(mae), y = 0.92, fontsize = 10)
         plt.xlabel('Time')
         plt.ylabel('Stock Price')
         plt.legend()
