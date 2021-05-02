@@ -347,12 +347,17 @@ def hyper_parameters_tunning(hyper_parameters, train_data, criterion, model_type
 def prediction(model, test_data, criterion, stock_name, model_type, all_ticker, model_name, save_dat=True, save_result=True, prediction_curve=True, normalized=True):
     """
     Plot the prediction curve of real stock price vs. predicted stock price.
-    :param model: nlp model trained
-    :param real_price_data: dataset containing the real stock price
+    :param model: model trained
     :param test_data: dataset used to predict the stock price
-    :param lag: length of a chunk (timestep)
-    :param scaler: scaler used to process the test_data
-    :param model_name: name of the output plot
+    :param criterion: metric to evaluate the deviation between real price and predicted price
+    :param stock_name: name of stock predicted
+    :param model_type: model type ("LSTM" or "GRU")
+    :param all_ticker: model trained on data of all tickers or single ticker ("y" or "n")
+    :param model_name: name of model
+    :param save_dat: whether to save the data predicted
+    :param save_result: whether to save the config file of trained model with the loss of prediction
+    :param prediction_curve: whether to save the prediction curve
+    :param normalized: whether to normailize the test data
     :return: None
     """
     
