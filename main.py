@@ -1,19 +1,41 @@
 from src.utilities import *
 from src.LSTM import LSTM
+from src.GRU import GRU
 from pathlib import Path
 import src.model_data as md
 import sys
 import time
+import argparse
 sys.path.append(Path(".").absolute().parent.as_posix())
 
+"""
+===================================
+script running options:
+for example
+    python main.py -t AAPL -m LSTM 
+        : train AAPL with LSTM model
+    
+    python main.py -t all -m LSTM 
+        : run all tickers with LSTM model
+    
+    python main.py -t AAPL -m GRU 
+        : run AAPL with GRU model
+
+    python main.py -t all -m GRU 
+        : run all tickers with GRU model
+======================================
+"""
+
+parser = argparse.ArgumentParser(
+    description="training pipeline"
+)
+parser.add_argument("-t", help="name of the ticker")
+parser.add_argument("-m", help="LSTM or GRU")
+# arguments
+args = parser.parse_args()
+assert args.m in ["LSTM", "GRU"], "model type specified wrong"
 
 if __name__ == "__main__":
-    """
-    ===================================
-    run script as main.py stock, 
-    i.e. python main.py TEAM
-    ======================================
-    """
 
     """
     ============================
@@ -22,10 +44,9 @@ if __name__ == "__main__":
     """
     start_time = time.time()
     # stock name is from input arguments
-    stock_name = sys.argv[1]
+    stock_name = args.t
     # define data config
     # single ticker:
-    train_single_ticker = False
     if stock_name != "all":
         ticker_pipeline = md.SingleTickerPipeline(
             target="price",
@@ -97,8 +118,6 @@ if __name__ == "__main__":
     """
     # get all data for final training
     #
-    # x_all = np.append(train_data[len(train_data)-1]["train"]["x"], train_data[len(train_data)-1]["valid"]["x"], axis=0)
-    # y_all = np.append(train_data[len(train_data)-1]["train"]["y"], train_data[len(train_data)-1]["valid"]["y"], axis=0)
     x_all = train_data['_all_']["x"]
     y_all = train_data['_all_']['y']
     # # delete untransformed data
@@ -116,17 +135,24 @@ if __name__ == "__main__":
     # learning_rate = best_combo["learning_rate"]
     input_dim = x_train[0].shape[2]
     output_dim = y_train[0].shape[1]
-    hidden_dim = 128
-    num_layers = 2
-    num_epochs = 300
-    learning_rate = 0.002
+    hidden_dim = 192
+    num_layers = 8
+    num_epochs = 400
+    learning_rate = 0.001
     # Use LSTM model
-    model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
-    #
-    if sys.argv[1] != "all":
-        model_name = "LSTM_{}".format(stock_name)
+    if args.m == "LSTM":
+        model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
+        if stock_name != "all":
+            model_name = "LSTM_{}".format(stock_name)
+        else:
+            model_name = "LSTM_all_tickers"
     else:
-        model_name = "LSTM_all_tickers"
+        model = GRU(input_dim, hidden_dim, num_layers, output_dim)
+        if stock_name != "all":
+            model_name = "GRU_{}".format(stock_name)
+        else:
+            model_name = "GRU_all_tickers"
+    #
     val_loss = train(model, num_epochs, x_train, y_train, x_valid, y_valid, criterion, learning_rate, model_name, True, True)
     #
     end_time = time.time()

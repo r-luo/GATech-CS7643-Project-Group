@@ -2,7 +2,18 @@ import glob
 import os
 from pathlib import Path
 import sys
-import time
+import argparse
+
+parser = argparse.ArgumentParser(
+    description="training pipeline"
+)
+parser.add_argument("-a", help="y or n")
+parser.add_argument("-m", help="LSTM or GRU")
+# arguments
+args = parser.parse_args()
+
+assert args.a in ["y", "n"], "allTicker or not is not specified."
+assert args.m in ["LSTM", "GRU"], "model type specified wrong"
 
 if __name__ == "__main__":
     """
@@ -13,11 +24,7 @@ if __name__ == "__main__":
     data_path = Path(__file__).absolute().parent.joinpath("data/feature_selected")
     files = glob.glob(os.path.join(data_path, "*.csv"))
     file_names = [os.path.basename(filename).rstrip(".csv") for filename in files]
-    if len(sys.argv) <= 1:
-        for file_name in file_names:
-            os.system("python predict.py {}".format(file_name))
-    elif sys.argv[1] == "all":
-        for file_name in file_names:
-            os.system("python predict.py all {}".format(file_name))
+    for file_name in file_names:
+        os.system("python predict.py -t {} -a {} -m {}".format(file_name, args.a, args.m))
 
 

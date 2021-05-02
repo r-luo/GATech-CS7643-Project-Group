@@ -7,6 +7,8 @@ import pandas as pd
 import copy
 import torch
 from .LSTM import LSTM
+from .GRU import GRU
+import csv
 
 
 def split_data(x, y, batch_size):
@@ -271,6 +273,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
             break
         #
         print("Epoch ", epoch, "training MAE: ", train_loss_per_batch, "validation MAE: ", val_loss_per_batch)
+
         train_hist.append(train_loss_per_batch)
         val_hist.append(val_loss_per_batch)
 
@@ -285,14 +288,31 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         plt.title("training loss - {}".format(model_name))
         plt.savefig(os.path.join(saved_folder, "{}.jpg".format(model_name)))
 
-    return val_loss_per_batch
+    #
+    # make the dataframe
+    loss_hist = pd.DataFrame(
+        {'training loss': train_hist, 'validation loss': val_hist})
+
+    # Save the dataframe
+    hidden_dim = model.hidden_dim
+    num_layers = model.num_layers
+    loss_hist_folder = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'training_curves'))
+    loss_hist.to_csv(os.path.join(loss_hist_folder, "{}__hd_{}__nl_{}__lr_{}_ training_loss.csv".format(model_name,
+                                                                                                        hidden_dim,
+                                                                                                        num_layers,
+                                                                                                        learning_rate)), index=False)
+    #
+    print("min loss: ", min_val_loss)
+    return min_val_loss
 
 
-def hyper_parameters_tunning(hyper_parameters, train_data, criterion):
+def hyper_parameters_tunning(hyper_parameters, train_data, criterion, model_type="LSTM"):
     """
 
     :param hyper_parameters: hyper parameters
     :param train_data: training data in folds, used for cross validation
+    :param model_type: LSTM or GRU
+    :param criterion: training criterion
     :return:
     """
 
@@ -312,12 +332,10 @@ def hyper_parameters_tunning(hyper_parameters, train_data, criterion):
         num_layers = combo['num_layers']
         num_epochs = combo['num_epochs']
         learning_rate = combo['learning_rate']
-        model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-        model_name = "LSTM_trial_hidden_dims_{}__num_layers_{}__num_epochs_{}__lr_{}".format(hidden_dim,
-                                                                                             num_layers,
-                                                                                             num_epochs,
-                                                                                             learning_rate)
+        if model_type == "LSTM":
+            model = LSTM(input_dim, hidden_dim, num_layers, output_dim)
+        else:
+            model = GRU(input_dim, hidden_dim, num_layers, output_dim)
         val_loss = rolling_cross_validation(train_data, model, num_epochs, criterion, learning_rate)
         if val_loss < best_loss:
             best_loss = val_loss
@@ -375,7 +393,7 @@ def prediction(model, test_data, stock_name, model_name, save_dat=True, predicti
     # Visualising the results
     if prediction_curve:
         price_dat.plot(kind='line', x = "Date", y = ['Real_Price','Predicted_Price'], color = ['red','blue'],label = ['Real Stock Price','Predicted Stock Price'])
-        plt.title('Stock Price Prediction')
+        plt.title('Stock Price Prediction - {}'.format(model_name))
         plt.xlabel('Time')
         plt.ylabel('Stock Price')
         plt.legend()
