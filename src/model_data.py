@@ -103,7 +103,7 @@ class SingleTickerPipeline:
             if self.target == "log_return":
                 return_col = get_return_col(df, log=True)
             df.loc[:, "target"] = df[return_col]
-            df.drop(['adj_close'])
+            df.drop(['adj_close'], axis=1)
         self._feature_cols = df.drop(['date', 'target'], axis=1).columns.tolist()
         
         # match the target with data from the previous days
