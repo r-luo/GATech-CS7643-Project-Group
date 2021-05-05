@@ -1,0 +1,9 @@
+input_dim: 53 
+output_dim: 1 
+epochs_number: 400 
+validation loss: 374.0199522972107 
+hidden_dim: 128 
+num_layers: 2 
+learning_rate: 0.001 
+training total time: 3410.4175662994385 
+prediction loss: 73.32578773235451 
