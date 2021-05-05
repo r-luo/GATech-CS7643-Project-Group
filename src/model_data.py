@@ -144,7 +144,7 @@ class SingleTickerPipeline:
                         arrays["y"].append([df["target"].iloc[(N - i * seq_dist) - 1]])
                     else:
                         raise KeyError("Unknown target_type: target_type must be one of 'sequence' or 'single'!")
-                    arrays["prediction_date"].append([df["prediction_date"].iloc[(N - i * seq_dist) - 1]])
+                    arrays["prediction_date"].append(df["prediction_date"].iloc[(N - i * seq_dist) - 1])
                     arrays["N"] += 1
         arrays["x"] = np.array(arrays['x'][::-1])
         arrays["y"] = np.array(arrays['y'][::-1])
@@ -432,11 +432,11 @@ class MultiTickerPipeline(SingleTickerPipeline):
             val_begin_dt = train_dates[val_begin_ind]
             val_end_dt = train_dates[val_begin_ind + fold_size]
             
-            train_inds = np.argwhere(self._train_xy_arrays["prediction_date"] <= train_end_dt)
+            train_inds = np.argwhere(self._train_xy_arrays["prediction_date"] <= train_end_dt).squeeze()
             val_inds = np.argwhere(
                 (val_begin_dt <= self._train_xy_arrays["prediction_date"]) &
                 (self._train_xy_arrays["prediction_date"] <= val_end_dt)
-            )
+            ).squeeze()
             fold_arrs = {
                 "train":{
                     "x": self._train_xy_arrays["x"][train_inds],
@@ -459,7 +459,7 @@ class MultiTickerPipeline(SingleTickerPipeline):
         self._train_out = folds
     
     def write_data(self):
-        self._save_path = self.output_path.joinpath(f"{len(self._tickers)}tickers")
+        self._save_path = self.output_path.joinpath(f"{self.target}-{self.target_type}-{len(self._tickers)}tickers")
         LOG.info(f"Saving generated data at {self._save_path.as_posix()}...")
         if not self._save_path.exists():
             LOG.info(f"  Directory doesn't exist, making directory...")
