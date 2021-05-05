@@ -82,7 +82,7 @@ if __name__ == "__main__":
             ],
             cross_validation_folds=5, )
         # Prepare data into folds
-        ticker_pipeline.prepare_data(['_all_'])
+        # ticker_pipeline.prepare_data(['_all_'])
         ticker_pipeline.load_data("96tickers")
     #
     train_data = ticker_pipeline._train_out

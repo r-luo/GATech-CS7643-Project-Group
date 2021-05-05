@@ -221,6 +221,11 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
         # print("length of x_train: ", len(x_train))
         for x_train_sequence, target in zip(x_train, y_train):
             # Need to clear gradients before each instance
+            # data shuffle
+            ids_shuffle = np.random.permutation(x_train_sequence.shape[0])
+            x_train_sequence = x_train_sequence[ids_shuffle]
+            target = target[ids_shuffle]
+            #
             model.zero_grad()
             # training
             model.train()
@@ -237,7 +242,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
 
             #
             train_loss_per_batch += train_loss.item()
-        train_loss_per_batch += train_loss_per_batch/len(x_train)
+        train_loss_per_batch = train_loss_per_batch/len(x_train)
 
         # validation
         model.eval()
@@ -257,7 +262,7 @@ def train(model, num_epochs, x_train, y_train, x_validation, y_validation, crite
                 # print("val loss: ", val_loss)
                 #
                 val_loss_per_batch += val_loss.item()
-            train_loss_per_batch += val_loss_per_batch/len(x_validation)
+            val_loss_per_batch = val_loss_per_batch/len(x_validation)
         # early stopping:
         if val_loss_per_batch < min_val_loss:
             min_val_loss = val_loss_per_batch
