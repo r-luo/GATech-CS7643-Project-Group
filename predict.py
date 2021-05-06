@@ -43,7 +43,7 @@ if __name__ == "__main__":
             ],
             test_periods=[
                 # ("2007-01-01", "2008-12-31"),
-                ("2021-01-01", "2021-04-01"),
+                ("2020-01-01", "2021-04-01"),
             ],
             cross_validation_folds=5, )
     # Prepare data into folds
