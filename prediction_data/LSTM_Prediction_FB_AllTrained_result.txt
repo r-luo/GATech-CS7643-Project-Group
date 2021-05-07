@@ -6,4 +6,4 @@ hidden_dim: 128
 num_layers: 2 
 learning_rate: 0.001 
 training total time: 3410.4175662994385 
-prediction loss: 6.1893196263806605 
+prediction loss: 7.244522789264548 
